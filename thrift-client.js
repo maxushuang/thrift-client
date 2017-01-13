@@ -16,28 +16,40 @@ class SocketClosedByBackEnd extends Error {
   }
 }
 
-class ThriftListener extends EventEmitter {
-  constructor({ server, port, schema }) {
+class ThriftServerListener extends EventEmitter {
+  constructor({ server, port=8100, schema }) {
     super();
     Object.defineProperty(this, METHODS, { value: [] });
     if (server) {
       server.on('connection', socket => {
         let thrift = new Thrift(socket);
         let client = new ThriftClient({ thrift, schema });
-        client.on('error', () => thrift.end());
+        client.on('error', () => client.end());
         this[METHODS].forEach(args => client.register(...args));
       });
     } else {
-      Thrift.createServer(thrift => {
+      server=Thrift.createServer(thrift => {
         let client = new ThriftClient({ thrift, schema });
-        client.on('error', () => thrift.end());
+        client.on('error', () => client.end());
         this[METHODS].forEach(args => client.register(...args));
       }).listen(port);
     }
+    this.server=server;
   }
   register(...args) {
     this[METHODS].push(args);
     return this;
+  }
+  address(){
+    return this.server.address();
+  }
+  listen(...args){
+    return this.server.listen(...args);
+  }
+  end(){
+    this.removeAllListeners();
+    this.server.close();
+    this[METHODS]=[];
   }
 }
 
@@ -149,9 +161,19 @@ const destroyThriftConnection = connection => {
 
 class ThriftClient extends EventEmitter {
   static start(args) {
-    return new ThriftListener(args);
+    return new ThriftServerListener(args);
   }
   constructor(options) {
+<<<<<<< HEAD
+  super();
+  this.state = 'INITIAL';
+  Object.defineProperty(this, METHODS, { value: {} });
+  Object.defineProperty(this, STORAGE, { value: new Storage() });
+  Object.assign(this, options, { thrift: null });
+  this.ignoreResponseCheck = !!options.ignoreResponseCheck;
+  if (!('retryDefer' in this) && !this.thrift) this.retryDefer = 1000;
+  this.reset(options.thrift);
+=======
     super();
     this.state = 'INITIAL';
     Object.defineProperty(this, METHODS, { value: {} });
@@ -162,6 +184,7 @@ class ThriftClient extends EventEmitter {
     // Don't retry, if thrift object has specified.
     if (options.thrift) this.retryDefer = 0;
     this.reset(options.thrift);
+>>>>>>> origin/master
   }
   set schema(data) {
     let { ignoreResponseCheck } = this;
